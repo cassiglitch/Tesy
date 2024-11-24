@@ -35,10 +35,6 @@
              -ms-user-select: none; /* For Internet Explorer/Edge */
         }
 
-        #scoreboard {
-            margin-top: 10px;
-            text-align: center;
-        }
 
         .explosion {
             animation: explode 1s ease-out;
@@ -54,7 +50,6 @@
 <body>
     <div id="game-container">
         <canvas id="gameCanvas"></canvas>
-    </div>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
