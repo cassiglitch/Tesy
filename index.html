@@ -54,10 +54,6 @@
 <body>
     <div id="game-container">
         <canvas id="gameCanvas"></canvas>
-        <div id="scoreboard">
-            <p>Score: <span id="score">0</span></p>
-            <p>Health: <span id="health">3</span></p>
-        </div>
     </div>
     <script>
         const canvas = document.getElementById('gameCanvas');
@@ -235,7 +231,18 @@ document.addEventListener('touchend', handleTouchEndForBomb);
             updateBombs();
             columns = canvas.width / gridSize;
             rows = canvas.height / gridSize;
-        }
+    // Set font and style
+    ctx.font = '24px Arial';
+    ctx.fillStyle = 'white';
+
+    // Position the scoreboard
+    const x = 10;
+    const y = 30;
+
+    // Draw the score
+    ctx.fillText(`Score: ${score}`, x, y);
+            ctx.fillText(`Health: ${health}`, x, y + 10);
+}
 
         // Move snake
         function moveSnake() {
