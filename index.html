@@ -364,6 +364,80 @@ function removeExplosionEffects(explosion) {
                 dropBomb(); // Drop bomb when space is pressed
             }
         }
+function closestNumber(n, m) {
+    // Find the quotient
+    let q = Math.floor(n / m);
+
+    // 1st possible closest number
+    let n1 = m * q;
+
+    // 2nd possible closest number
+    let n2 = m * (q + 1);
+
+    // Ensure that n1 does not exceed n
+    if (n1 > n) {
+        return n;
+    }
+
+    // Ensure that n2 does not exceed n
+    if (n2 > n) {
+        return n1;
+    }
+
+    // Return the closest multiple of m to n
+    return Math.abs(n - n1) < Math.abs(n - n2) ? n1 : n2;
+}
+
+function resizeCanvas() {
+    
+    const canvasWidth = closestNumber(window.innerWidth, gridSize);
+    const canvasHeight = closestNumber(window.innerHeight, gridSize);
+    // Remove out-of-bounds elements from mirrors array
+    
+    // Set canvas width and height
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+        }
+        function getZoomFactor() {
+            var deviceWidth, landscape = Math.abs(window.orientation) == 90
+            // workaround for strange screen.height on the iPhone (v3.1.3)
+            if (window.screen.width == 320) deviceWidth = landscape ? 480 : 320
+            else deviceWidth = window.screen[landscape ? "height" : "width"]
+            var zoomFactor = deviceWidth / window.innerWidth;
+            var antiZoomFactor = 1 / zoomFactor;
+          
+            // Apply zoom and anti-zoom factors to grid size
+            gridSize = Math.max(0, Math.ceil(startingGridSize * antiZoomFactor));
+            document.getElementById('scoreDisplay').style.top = (20 * antiZoomFactor) + 'px';
+            document.documentElement.style.setProperty('--grid-size', (20 * antiZoomFactor) + 'px');
+            psize = gridSize;
+        }
+
+        setInterval(getZoomFactor, 1); // Adjust the interval as needed
+
+        // Clean up the interval when the window is closed
+
+// Function to resize the canvas height based on viewport height
+function resizeCanvasHeight() {
+    const windowHeight = window.innerHeight; // Get the viewport height
+    const canvasHeight = closestNumber(window.innerHeight, gridSize);; // Adjust the canvas height to be a multiple of gridSize
+    canvas.height = canvasHeight; // Set the canvas height
+}
+// Call the resizeCanvasHeight function initially to set the canvas height
+resizeCanvasHeight();
+// Call the resizeCanvasHeight function whenever the window is resized
+window.addEventListener('resize', resizeCanvasHeight);
+                function adjustForZoom() {
+            // Calculate the zoom factor
+            const zoomFactor = window.innerWidth / window.screen.availWidth;
+            // Adjust the grid size based on the zoom factor
+            document.documentElement.style.setProperty('--grid-size', (20 * antiZoomFactor) + 'px');
+        }
+window.addEventListener('resize', getZoomFactor);
+        // Call the adjustForZoom function initially and on window resize
+        window.addEventListener('resize', adjustForZoom);
+        adjustForZoom();
+
 
         // Game over
         function gameOver() {
