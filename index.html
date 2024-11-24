@@ -56,11 +56,13 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // Canvas and game settings
+canvas.width = 400; // Or desired width
+canvas.height = 400; // Or desired height
+
         let gridSize = 20; // Size of grid cells
         let startingGridSize = 20
-        const columns = canvas.width / gridSize;
-        const rows = canvas.height / gridSize;
+        let columns = canvas.width / gridSize;
+        let rows = canvas.height / gridSize;
 
         // Game state
         let snake = [{ x: 5, y: 5 }];
