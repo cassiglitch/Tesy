@@ -1,0 +1,386 @@
+!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake-Pac-Tetris Game</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #282c34;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #gameCanvas {
+            border: 2px solid white;
+            background: black;
+            display: block;
+        }
+
+        #scoreboard {
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .explosion {
+            animation: explode 1s ease-out;
+        }
+
+        @keyframes explode {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.5); }
+            100% { opacity: 0; transform: scale(2); }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="scoreboard">
+            <p>Score: <span id="score">0</span></p>
+            <p>Health: <span id="health">3</span></p>
+        </div>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Canvas and game settings
+        canvas.width = 600;
+        canvas.height = 600;
+        const gridSize = 20; // Size of grid cells
+        const columns = canvas.width / gridSize;
+        const rows = canvas.height / gridSize;
+
+        // Game state
+        let snake = [{ x: 5, y: 5 }];
+        let direction = { x: 1, y: 0 };
+        let pellets = [];
+        let tetrisBlocks = [];
+        let tetrisCoordinates = new Set(); // Tracks all occupied Tetris block cells
+        let score = 0;
+        let health = 3;
+        const maxPellets = 5;
+        let gameInterval;
+        let bombs = []; // To store bombs
+        
+    let explosions = []
+
+        // Initialize game
+        function startGame() {
+            spawnPellet();
+            gameInterval = setInterval(updateGame, 100);
+            document.addEventListener('keydown', handleKeyInput);
+        }
+
+        // Helper function to convert x,y to unique key for tetrisCoordinates
+        function coordToKey(x, y) {
+            return `${x},${y}`;
+        }
+
+        // Helper function to check if a coordinate exists in tetrisCoordinates
+        function isTetrisOccupied(x, y) {
+            return tetrisCoordinates.has(coordToKey(x, y));
+        }
+
+        // Draw grid
+        function drawGrid() {
+            ctx.strokeStyle = '#333';
+            for (let x = 0; x <= columns; x++) {
+                ctx.beginPath();
+                ctx.moveTo(x * gridSize, 0);
+                ctx.lineTo(x * gridSize, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= rows; y++) {
+                ctx.beginPath();
+                ctx.moveTo(0, y * gridSize);
+                ctx.lineTo(canvas.width, y * gridSize);
+                ctx.stroke();
+            }
+        }
+
+        // Draw snake
+        function drawSnake() {
+            snake.forEach((segment, index) => {
+                ctx.fillStyle = index === 0 ? 'lime' : 'green';
+                ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize, gridSize);
+            });
+        }
+
+        // Draw pellets
+        function drawPellets() {
+            ctx.fillStyle = 'yellow';
+            pellets.forEach(pellet => {
+                ctx.fillRect(pellet.x * gridSize, pellet.y * gridSize, gridSize, gridSize);
+            });
+        }
+
+        // Draw Tetris blocks
+        function drawTetrisBlocks() {
+            tetrisBlocks.forEach(block => {
+                ctx.fillStyle = block.color;
+                block.shape.forEach(cell => {
+                    ctx.fillRect((block.x + cell.x) * gridSize, (block.y + cell.y) * gridSize, gridSize, gridSize);
+                });
+            });
+        }
+
+        // Draw bombs
+        function drawBombs() {
+            bombs.forEach(bomb => {
+                ctx.fillStyle = 'red';
+                ctx.beginPath();
+                ctx.arc(bomb.x * gridSize + gridSize / 2, bomb.y * gridSize + gridSize / 2, gridSize / 2, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        // Update game logic
+        function updateGame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGrid();
+            moveSnake();
+            handleCollisions();
+            drawSnake();
+            drawPellets();
+            drawTetrisBlocks();
+            drawBombs();
+            moveTetrisBlocks();
+            maybeSpawnTetrisBlock();
+            updateBombs();
+        }
+
+        // Move snake
+        function moveSnake() {
+            const head = { ...snake[0] };
+            head.x += direction.x;
+            head.y += direction.y;
+
+            // Handle Pac-Man-style looping
+            if (head.x < 0) head.x = columns - 1;
+            if (head.x >= columns) head.x = 0;
+            if (head.y < 0) head.y = rows - 1;
+            if (head.y >= rows) head.y = 0;
+
+            snake.unshift(head);
+
+            // Remove tail if no pellet eaten
+            if (!pellets.some(pellet => pellet.x === head.x && pellet.y === head.y)) {
+                snake.pop();
+            } else {
+                // Consume pellet
+                pellets = pellets.filter(pellet => pellet.x !== head.x || pellet.y !== head.y);
+                score++;
+                document.getElementById('score').innerText = score;
+                if (pellets.length < maxPellets) spawnPellet();
+            }
+        }
+
+        // Spawn pellet
+        function spawnPellet() {
+            let pellet;
+            do {
+                pellet = { x: Math.floor(Math.random() * columns), y: Math.floor(Math.random() * rows) };
+            } while (snake.some(segment => segment.x === pellet.x && segment.y === pellet.y) || isTetrisOccupied(pellet.x, pellet.y));
+            pellets.push(pellet);
+        }
+
+        // Spawn Tetris block randomly
+        function maybeSpawnTetrisBlock() {
+            if (Math.random() < 0.05) { // 5% chance each frame
+                spawnTetrisBlock();
+            }
+        }
+
+        // Spawn Tetris block
+        function spawnTetrisBlock() {
+            const shapes = [
+                [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 3, y: 0 }], // I shape
+                [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }], // O shape
+                [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 1 }], // L shape
+                [{ x: 0, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }, { x: 2, y: 1 }], // J shape
+                [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }, { x: 2, y: 1 }]  // T shape
+            ];
+
+            const randomShape = shapes[Math.floor(Math.random() * shapes.length)];
+            const color = ['#f00', '#0f0', '#00f', '#ff0', '#0ff'][Math.floor(Math.random() * 5)];
+            const randomX = Math.floor(Math.random() * (columns - 4)); // Randomize x-position
+            tetrisBlocks.push({ x: randomX, y: 0, shape: randomShape, color: color });
+        }
+
+        // Move Tetris blocks
+function moveTetrisBlocks() {
+    // Keep track of all valid coordinates that belong to tetrisBlocks
+    const validCoordinates = new Set();
+
+    tetrisBlocks.forEach(block => {
+        // Remove old positions from tetrisCoordinates
+        block.shape.forEach(cell => {
+            tetrisCoordinates.delete(coordToKey(block.x + cell.x, block.y + cell.y));
+        });
+
+        // Check for collision with bottom or static blocks
+        const collision = block.shape.some(cell => 
+            block.y + cell.y + 1 >= rows || 
+            isTetrisOccupied(block.x + cell.x, block.y + cell.y + 1)
+        );
+
+        if (!collision) {
+            block.y++; // Move block down
+        }
+
+        // Add block's current positions to tetrisCoordinates
+        block.shape.forEach(cell => {
+            const key = coordToKey(block.x + cell.x, block.y + cell.y);
+            tetrisCoordinates.add(key);
+            validCoordinates.add(key);
+        });
+    });
+
+    // Cleanup: Remove any coordinates from tetrisCoordinates that are not in validCoordinates
+    tetrisCoordinates.forEach(coord => {
+        if (!validCoordinates.has(coord)) {
+            tetrisCoordinates.delete(coord);
+        }
+    });
+}
+
+
+        // Handle snake and Tetris block collisions
+        function handleCollisions() {
+            const head = snake[0];
+            if (tetrisBlocks.some(block => block.shape.some(cell => {
+                const blockX = block.x + cell.x;
+                const blockY = block.y + cell.y;
+                return head.x === blockX && head.y === blockY;
+            }))) {
+                health--;
+                document.getElementById('health').innerText = health;
+                if (health <= 0) {
+                    gameOver();
+                }
+            }
+        }
+
+        // Bomb mechanic - Drop bomb
+        function dropBomb() {
+            const bomb = { x: snake[0].x, y: snake[0].y, timer: Date.now() };
+            bombs.push(bomb);
+        }
+
+        // Update bombs and trigger explosions
+        function updateBombs() {
+            bombs.forEach((bomb, index) => {
+                if (Date.now() - bomb.timer >= 1500) {
+                    triggerExplosion(bomb);
+                    bombs.splice(index, 1);
+                }
+            });
+        }
+function triggerExplosion(bomb) {
+    let explosion = {
+        x: bomb.x,
+        y: bomb.y,
+        radius: 0,
+        alpha: 1,
+        expand: true
+    };
+    explosions.push(explosion);
+
+    function animateExplosion() {
+        if (explosion.expand) {
+            explosion.radius += 0.5;
+            removeExplosionEffects(explosion)
+            if (explosion.radius >= 3) {
+                explosion.expand = false; // Start fading
+            }
+        } else {
+            explosion.alpha -= 0.05;
+            if (explosion.alpha <= 0) {
+                // Remove explosion
+                explosions = explosions.filter(e => e !== explosion);
+                return; // Stop animation
+            }
+        }
+
+        ctx.fillStyle = `rgba(255, 0, 0, ${explosion.alpha})`;
+        ctx.beginPath();
+        ctx.arc(
+            explosion.x * gridSize + gridSize / 2,
+            explosion.y * gridSize + gridSize / 2,
+            explosion.radius * gridSize,
+            0,
+            Math.PI * 2
+        );
+        ctx.fill();
+
+        requestAnimationFrame(animateExplosion);
+    }
+
+    animateExplosion();
+}
+
+function removeExplosionEffects(explosion) {
+    // Remove snake segments within explosion radius
+    snake = snake.filter(segment => {
+        const distance = Math.sqrt(Math.pow(segment.x - explosion.x, 2) + Math.pow(segment.y - explosion.y, 2));
+        return distance > explosion.radius; // Only keep segments outside the explosion radius
+    });
+
+    // Remove Tetris blocks within explosion radius
+    tetrisBlocks = tetrisBlocks.filter(block => {
+        return block.shape.every(cell => {
+            const distance = Math.sqrt(Math.pow(block.x + cell.x - explosion.x, 2) + Math.pow(block.y + cell.y - explosion.y, 2));
+            return distance > explosion.radius; // Only keep blocks outside the explosion radius
+        });
+    });
+
+}
+
+
+        // Handle key input
+        function handleKeyInput(event) {
+            if (event.key === 'ArrowUp' && direction.y === 0) {
+                direction = { x: 0, y: -1 };
+            } else if (event.key === 'ArrowDown' && direction.y === 0) {
+                direction = { x: 0, y: 1 };
+            } else if (event.key === 'ArrowLeft' && direction.x === 0) {
+                direction = { x: -1, y: 0 };
+            } else if (event.key === 'ArrowRight' && direction.x === 0) {
+                direction = { x: 1, y: 0 };
+            } else if (event.key === ' ') {
+                dropBomb(); // Drop bomb when space is pressed
+            }
+        }
+
+        // Game over
+        function gameOver() {
+        snake = [{ x: 5, y: 5 }]; 
+        direction = { x: 1, y: 0 };
+        pellets = [];
+        tetrisBlocks = [];
+        tetrisCoordinates = new Set(); // Tracks all occupied Tetris block cells
+        score = 0;
+        health = 3;
+        maxPellets = 5;
+        gameInterval;
+        bombs = []; // To store bombs
+        explosions = []
+        }
+
+        startGame();
+    </script>
+</body>
+</html>
