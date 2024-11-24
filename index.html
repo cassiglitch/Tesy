@@ -432,8 +432,6 @@ window.addEventListener('resize', resizeCanvasHeight);
                 function adjustForZoom() {
             // Calculate the zoom factor
             const zoomFactor = window.innerWidth / window.screen.availWidth;
-            // Adjust the grid size based on the zoom factor
-            document.documentElement.style.setProperty('--grid-size', (20 * antiZoomFactor) + 'px');
         }
 window.addEventListener('resize', getZoomFactor);
         // Call the adjustForZoom function initially and on window resize
@@ -457,7 +455,7 @@ window.addEventListener('resize', getZoomFactor);
         }
 
         startGame();
-        updateGame()
+        updateGame();
     </script>
 </body>
 </html>
