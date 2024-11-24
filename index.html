@@ -57,9 +57,8 @@
         const ctx = canvas.getContext('2d');
 
         // Canvas and game settings
-        canvas.width = 600;
-        canvas.height = 600;
-        const gridSize = 20; // Size of grid cells
+        let gridSize = 20; // Size of grid cells
+        let startingGridSize = 20
         const columns = canvas.width / gridSize;
         const rows = canvas.height / gridSize;
 
