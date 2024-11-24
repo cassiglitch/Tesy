@@ -162,6 +162,8 @@ canvas.height = 400; // Or desired height
             moveTetrisBlocks();
             maybeSpawnTetrisBlock();
             updateBombs();
+            columns = canvas.width / gridSize;
+            rows = canvas.height / gridSize;
         }
 
         // Move snake
