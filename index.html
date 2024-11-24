@@ -77,7 +77,71 @@ canvas.height = 400; // Or desired height
         let bombs = []; // To store bombs
         
     let explosions = []
+let touchStartX = 0;
+let touchStartY = 0;
+let touchEndX = 0;
+let touchEndY = 0;
 
+function handleTouchStart(event) {
+    const touch = event.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+}
+
+function handleTouchEnd(event) {
+    const touch = event.changedTouches[0];
+    touchEndX = touch.clientX;
+    touchEndY = touch.clientY;
+
+    const dx = touchEndX - touchStartX;
+    const dy = touchEndY - touchStartY;
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+        // Horizontal swipe
+        if (dx > 0) {
+            setDirection(1, 0); // Swipe right
+        } else {
+            setDirection(-1, 0); // Swipe left
+        }
+    } else {
+        // Vertical swipe
+        if (dy > 0) {
+            setDirection(0, 1); // Swipe down
+        } else {
+            setDirection(0, -1); // Swipe up
+        }
+    }
+}
+
+// Helper function to set direction
+function setDirection(x, y) {
+    if (direction.x !== -x && direction.y !== -y) {
+        direction = { x, y };
+    }
+}
+
+// Add touch event listeners
+document.addEventListener('touchstart', handleTouchStart);
+document.addEventListener('touchend', handleTouchEnd);
+
+let touchStartTime = 0;
+
+function handleTouchStartForBomb(event) {
+    touchStartTime = Date.now();
+}
+
+function handleTouchEndForBomb(event) {
+    const touchDuration = Date.now() - touchStartTime;
+    if (touchDuration < 300) {
+        dropBomb(); // Drop a bomb on tap
+    }
+}
+
+// Add event listeners for bomb dropping
+document.addEventListener('touchstart', handleTouchStartForBomb);
+document.addEventListener('touchend', handleTouchEndForBomb);
+
+        
         // Initialize game
         function startGame() {
             spawnPellet();
