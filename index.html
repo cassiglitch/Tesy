@@ -85,6 +85,59 @@ let isHitstunned = false;
 let hitstunTimer = 0;
 const hitstunDuration = 5000; // 5 seconds in milliseconds
 
+function filterFilledCoordinates(coordinates, canvasWidth, canvasHeight) {
+    // Create a map to track counts of coordinates in each row and column
+    const rowCount = Array(canvasHeight).fill(0);
+    const colCount = Array(canvasWidth).fill(0);
+
+    // Track the coordinates in each row and column
+    const rowCoordinates = {};
+    const colCoordinates = {};
+
+    // Populate the tracking maps
+    coordinates.forEach(({ x, y }) => {
+        if (!rowCoordinates[y]) rowCoordinates[y] = [];
+        if (!colCoordinates[x]) colCoordinates[x] = [];
+        
+        rowCoordinates[y].push({ x, y });
+        colCoordinates[x].push({ x, y });
+        
+        rowCount[y]++;
+        colCount[x]++;
+    });
+
+    // Find filled rows and columns
+    const filledRows = rowCount
+        .map((count, index) => (count === canvasWidth ? index : -1))
+        .filter(index => index !== -1);
+
+    const filledCols = colCount
+        .map((count, index) => (count === canvasHeight ? index : -1))
+        .filter(index => index !== -1);
+
+    // Create a set of coordinates to remove
+    const toRemove = new Set();
+
+    filledRows.forEach(row => {
+        rowCoordinates[row].forEach(({ x, y }) => {
+            toRemove.add(`${x},${y}`);
+        });
+    });
+
+    filledCols.forEach(col => {
+        colCoordinates[col].forEach(({ x, y }) => {
+            toRemove.add(`${x},${y}`);
+        });
+    });
+
+    // Filter out the coordinates that are in filled rows or columns
+    const filteredCoordinates = coordinates.filter(({ x, y }) => !toRemove.has(`${x},${y}`));
+
+    return filteredCoordinates;
+}
+
+// Example Usage
+
 
 function handleTouchStart(event) {
     const touch = event.touches[0];
@@ -294,6 +347,9 @@ function updateGame() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     resizeCanvas();
     drawGrid();
+    let ctxh = canvas.height/gridSize
+    let ctxw = canvas.width/gridSize
+    filterFilledCoordinates(snake, ctxw, ctxh);
     if (isPaused === false) {
         moveSnake();
         handleCollisions();
