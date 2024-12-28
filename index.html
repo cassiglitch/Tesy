@@ -352,7 +352,7 @@ function updateGame() {
     drawGrid();
     let ctxh = canvas.height/gridSize
     let ctxw = canvas.width/gridSize
-    filterFilledCoordinates(snake, ctxw, ctxh);
+snake = filterFilledCoordinates(snake, ctxw, ctxh);
     if (isPaused === false) {
         moveSnake();
         handleCollisions();
