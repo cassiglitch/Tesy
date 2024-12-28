@@ -1,9 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Snake-Pac-Tetris Game</title>
+    <meta charset="UTF-8">
     <style>
         body {
             margin: 0;
@@ -15,13 +14,13 @@
             color: white;
             font-family: Arial, sans-serif;
         }
-
+        
         #game-container {
             display: flex;
             flex-direction: column;
             align-items: center;
         }
-
+        
         #gameCanvas {
             border: 2px solid white;
             background: black;
@@ -34,12 +33,12 @@
             -moz-user-select: none; /* For Firefox */
              -ms-user-select: none; /* For Internet Explorer/Edge */
         }
-
-
+        
+        
         .explosion {
             animation: explode 1s ease-out;
         }
-
+        
         @keyframes explode {
             0% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.5; transform: scale(1.5); }
@@ -56,28 +55,36 @@
 canvas.width = 400; // Or desired width
 canvas.height = 400; // Or desired height
 
+let connectedPoints = []
+let tetrisSpawnChance = 0.9
         let gridSize = 20; // Size of grid cells
         let startingGridSize = 20
         let columns = canvas.width / gridSize;
         let rows = canvas.height / gridSize;
-
+let blockCoordinates = [];  // New array to store coordinates of the blocks
         // Game state
+        let isPaused = false
         let snake = [{ x: 5, y: 5 }];
         let direction = { x: 1, y: 0 };
         let pellets = [];
         let tetrisBlocks = [];
         let tetrisCoordinates = new Set(); // Tracks all occupied Tetris block cells
         let score = 0;
-        let health = 3;
+        let health = 5;
         const maxPellets = 5;
         let gameInterval;
         let bombs = []; // To store bombs
-        
+           let clearedLines = 0;
     let explosions = []
 let touchStartX = 0;
 let touchStartY = 0;
 let touchEndX = 0;
 let touchEndY = 0;
+// Add hitstun state and timer
+let isHitstunned = false;
+let hitstunTimer = 0;
+const hitstunDuration = 5000; // 5 seconds in milliseconds
+
 
 function handleTouchStart(event) {
     const touch = event.touches[0];
@@ -129,7 +136,7 @@ function handleTouchStartForBomb(event) {
 
 function handleTouchEndForBomb(event) {
     const touchDuration = Date.now() - touchStartTime;
-    if (touchDuration < 300) {
+    if (touchDuration < 500) {
         dropBomb(); // Drop a bomb on tap
     }
 }
@@ -138,7 +145,43 @@ function handleTouchEndForBomb(event) {
 document.addEventListener('touchstart', handleTouchStartForBomb);
 document.addEventListener('touchend', handleTouchEndForBomb);
 
-        
+// Function to toggle the isPaused state
+function togglePause() {
+    isPaused = !isPaused;
+}
+
+// Event listener for the "P" key
+window.addEventListener("keydown", (event) => {
+    if (event.key.toLowerCase() === "p") {
+        togglePause();
+    }
+});
+
+// Variables for the canvas hold detection
+let holdTimeout;
+let isHolding = false;
+
+// Mouse down on canvas starts the hold timer
+document.addEventListener("touchstart", () => {
+    isHolding = true;
+    holdTimeout = setTimeout(() => {
+        if (isHolding) {
+            togglePause();
+        }
+    }, 900); // 5 seconds
+});
+
+// Mouse up on canvas clears the hold timer
+document.addEventListener("touchend", () => {
+    isHolding = false;
+    clearTimeout(holdTimeout);
+});
+
+// Mouse out cancels the hold if the cursor leaves the canvas
+document.addEventListener("mouseleave", () => {
+    isHolding = false;
+    clearTimeout(holdTimeout);
+});
         // Initialize game
         function startGame() {
             spawnPellet();
@@ -173,13 +216,6 @@ document.addEventListener('touchend', handleTouchEndForBomb);
             }
         }
 
-        // Draw snake
-        function drawSnake() {
-            snake.forEach((segment, index) => {
-                ctx.fillStyle = index === 0 ? 'lime' : 'green';
-                ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize, gridSize);
-            });
-        }
 
         // Draw pellets
         function drawPellets() {
@@ -209,34 +245,184 @@ document.addEventListener('touchend', handleTouchEndForBomb);
             });
         }
 
-        // Update game logic
-        function updateGame() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            resizeCanvas()
-            drawGrid();
-            moveSnake();
-            handleCollisions();
-            drawSnake();
-            drawPellets();
-            drawTetrisBlocks();
-            drawBombs();
-            moveTetrisBlocks();
-            maybeSpawnTetrisBlock();
-            updateBombs();
-            columns = canvas.width / gridSize;
-            rows = canvas.height / gridSize;
-    // Set font and style
-    ctx.font = '24px Arial';
-    ctx.fillStyle = 'white';
+function findConnectedPoints(coordinates) {
+    // Helper function to check if two points are connected
+    function areConnected(point1, point2) {
+        // Modify this condition based on your definition of connection
+        // Example: connection by adjacency
+        return Math.abs(point1.x - point2.x) <= 1 && Math.abs(point1.y - point2.y) <= 1;
+    }
 
-    // Position the scoreboard
-    const x = 10;
-    const y = 30;
+    connectedPoints = [];
+    const visited = new Set();
 
-    // Draw the score
-    ctx.fillText(`Score: ${score}`, x, y);
-            ctx.fillText(`Health: ${health}`, x, y + 10);
+    // Recursive function to find all connected points
+    function dfs(currentPoint) {
+        const key = `${currentPoint.x},${currentPoint.y}`;
+        if (visited.has(key)) return;
+
+        visited.add(key);
+        connectedPoints.push(currentPoint);
+
+        for (const point of coordinates) {
+            if (!visited.has(`${point.x},${point.y}`) && areConnected(currentPoint, point)) {
+                dfs(point);
+            }
+        }
+    }
+
+    // Find starting points (y === 0)
+    for (const point of coordinates) {
+        if (point.y === 0 && !visited.has(`${point.x},${point.y}`)) {
+            dfs(point);
+        }
+    }
+
 }
+
+
+
+function convertToCoordinates(set) {
+    return set.map(item => {
+        const [x, y] = item; // Destructure the array directly
+        return { x: x, y: y }; // Return as an object with x and y
+    });
+}
+
+let scoreAddLineClear = false
+function updateGame() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    resizeCanvas();
+    drawGrid();
+    if (isPaused === false) {
+        moveSnake();
+        handleCollisions();
+    }
+    drawSnake();
+    drawPellets();
+    if (pellets.length === 0) {
+        spawnPellet();
+    }
+    drawTetrisBlocks();
+    drawBombs();
+    if (isPaused === false) {
+        moveTetrisBlocks();
+        maybeSpawnTetrisBlock();
+        updateBombs();
+        updateHitstun(); // New function for handling hitstun
+        findConnectedPoints(blockCoordinates)
+            const hasBottomY = connectedPoints.some(point => point.y >= canvas.height/gridSize - 1);
+    // If no such point exists, clear the array
+    if (!hasBottomY) {
+        connectedPoints = [];
+    }else {
+        connectedPoints.forEach((item) => {
+        let itemtopush = {x: item.x, y:item.y, timer:Date.now()- 1500}
+        bombs.push(itemtopush)
+        })
+        triggerHitstun();
+if (scoreAddLineClear === false){
+        score += 100
+        scoreAddLineClear = true
+    }
+}    
+}
+if (connectedPoints.length === 0){
+        scoreAddLineClear = false
+}
+    columns = canvas.width / gridSize;
+    rows = canvas.height / gridSize;
+
+    // Draw score and health
+ctx.font = '24px Arial';
+ctx.fillStyle = 'white';
+
+const x = 10;
+let y = 30; // Start Y position
+// Draw Score and Health
+ctx.fillText(`Score: ${score}`, x, y);
+ctx.fillText(`Health: ${health}`, x, y + 20);
+}
+
+
+// New function to handle hitstun updates
+function updateHitstun() {
+    if (isHitstunned) {
+        hitstunTimer -= 100; // Subtract the interval duration (100ms)
+        if (hitstunTimer <= 0) {
+            isHitstunned = false;
+        }
+    }
+}
+function transformSnake(block) {
+    // Add each part of the Tetris block to the snake's body
+    block.shape.forEach((part) => {
+        snake.push({ 
+            x: block.x + part.x * gridSize, 
+            y: block.y + part.y * gridSize 
+        });
+    });
+}
+
+function handleCollisions() {
+    const head = snake[0]; // Get the snake's head (leading segment)
+
+    // Loop through all Tetris blocks
+    tetrisBlocks.forEach((block, blockIndex) => {
+        // Check if any cell in the block's shape collides with the snake's head
+        const collided = block.shape.some(cell => {
+            const cellX = block.x + cell.x; // Absolute x-position of the cell
+            const cellY = block.y + cell.y; // Absolute y-position of the cell
+
+            // Check for collision with the snake's head
+            return cellX === head.x && cellY === head.y;
+        });
+
+        // If a collision is detected and the block's color is green, transform the snake
+        if (collided && block.color === '#0f0') {
+            transformSnake(block); // Apply the transformation
+            tetrisBlocks.splice(blockIndex, 1); // Remove the block from the array
+            score += 10
+        }else if (collided && !isHitstunned) {
+                        triggerHitstun();
+                        health--;
+                        if (health <= 0) {
+                            gameOver();
+                        }
+                    }
+
+    });
+}
+
+
+
+// New function to trigger hitstun
+function triggerHitstun() {
+    isHitstunned = true;
+    hitstunTimer = hitstunDuration;
+}
+
+// Modify drawSnake to include orange aura during hitstun
+function drawSnake() {
+    snake.forEach((segment, index) => {
+        if (isHitstunned) {
+            // Draw orange aura
+            ctx.fillStyle = 'orange';
+            ctx.fillRect(
+                segment.x * gridSize - 2, // Slightly larger than the segment size
+                segment.y * gridSize - 2,
+                gridSize + 4,
+                gridSize + 4
+            );
+        }
+
+        // Draw snake normally
+        ctx.fillStyle = index === 0 ? 'lime' : 'green';
+        ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize, gridSize);
+    });
+}
+
+
 
         // Move snake
         function moveSnake() {
@@ -275,7 +461,7 @@ document.addEventListener('touchend', handleTouchEndForBomb);
 
         // Spawn Tetris block randomly
         function maybeSpawnTetrisBlock() {
-            if (Math.random() < 0.05) { // 5% chance each frame
+            if (Math.random() < tetrisSpawnChance) { // 5% chance each frame
                 spawnTetrisBlock();
             }
         }
@@ -296,10 +482,11 @@ document.addEventListener('touchend', handleTouchEndForBomb);
             tetrisBlocks.push({ x: randomX, y: 0, shape: randomShape, color: color });
         }
 
-        // Move Tetris blocks
+// Move Tetris blocks
 function moveTetrisBlocks() {
     // Keep track of all valid coordinates that belong to tetrisBlocks
     const validCoordinates = new Set();
+    blockCoordinates = [];  // New array to store coordinates of the blocks
 
     tetrisBlocks.forEach(block => {
         // Remove old positions from tetrisCoordinates
@@ -322,6 +509,9 @@ function moveTetrisBlocks() {
             const key = coordToKey(block.x + cell.x, block.y + cell.y);
             tetrisCoordinates.add(key);
             validCoordinates.add(key);
+
+            // Save the x and y coordinates to blockCoordinates
+            blockCoordinates.push({ x: block.x + cell.x, y: block.y + cell.y });
         });
     });
 
@@ -331,28 +521,15 @@ function moveTetrisBlocks() {
             tetrisCoordinates.delete(coord);
         }
     });
+
 }
 
 
-        // Handle snake and Tetris block collisions
-        function handleCollisions() {
-            const head = snake[0];
-            if (tetrisBlocks.some(block => block.shape.some(cell => {
-                const blockX = block.x + cell.x;
-                const blockY = block.y + cell.y;
-                return head.x === blockX && head.y === blockY;
-            }))) {
-                health--;
-                document.getElementById('health').innerText = health;
-                if (health <= 0) {
-                    gameOver();
-                }
-            }
-        }
+
 
         // Bomb mechanic - Drop bomb
         function dropBomb() {
-            const bomb = { x: snake[0].x, y: snake[0].y, timer: Date.now() };
+            const bomb = { x: snake[0].x, y: snake[0].y, timer: Date.now()};
             bombs.push(bomb);
         }
 
@@ -378,7 +555,7 @@ function triggerExplosion(bomb) {
     function animateExplosion() {
         if (explosion.expand) {
             explosion.radius += 0.5;
-            removeExplosionEffects(explosion)
+              removeExplosionEffects(explosion)
             if (explosion.radius >= 3) {
                 explosion.expand = false; // Start fading
             }
@@ -409,11 +586,19 @@ function triggerExplosion(bomb) {
 }
 
 function removeExplosionEffects(explosion) {
+          if (!isHitstunned){
     // Remove snake segments within explosion radius
-    snake = snake.filter(segment => {
-        const distance = Math.sqrt(Math.pow(segment.x - explosion.x, 2) + Math.pow(segment.y - explosion.y, 2));
-        return distance > explosion.radius; // Only keep segments outside the explosion radius
-    });
+    const filteredSnake = snake.filter(segment => {
+    const distance = Math.sqrt(Math.pow(segment.x - explosion.x, 2) + Math.pow(segment.y - explosion.y, 2));
+    return distance > explosion.radius; // Only keep segments outside the explosion radius
+});
+
+if (filteredSnake.length === 0) {
+    gameOver(); // End the game if no segments are left
+} else {
+    snake = filteredSnake; // Otherwise, update the snake
+}
+}
 
     // Remove Tetris blocks within explosion radius
     tetrisBlocks = tetrisBlocks.filter(block => {
@@ -513,6 +698,7 @@ window.addEventListener('resize', getZoomFactor);
         adjustForZoom();
 
 
+
         // Game over
         function gameOver() {
         snake = [{ x: 5, y: 5 }]; 
@@ -521,7 +707,7 @@ window.addEventListener('resize', getZoomFactor);
         tetrisBlocks = [];
         tetrisCoordinates = new Set(); // Tracks all occupied Tetris block cells
         score = 0;
-        health = 3;
+        health = 5;
         maxPellets = 5;
         gameInterval;
         bombs = []; // To store bombs
