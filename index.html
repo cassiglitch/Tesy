@@ -89,60 +89,51 @@ let isHitstunned = false;
 let hitstunTimer = 0;
 const hitstunDuration = 5000; // 5 seconds in milliseconds
 
-function filterFilledCoordinates(coordinates, canvasWidth, canvasHeight) {
-    // Create a map to track counts of coordinates in each row and column
-    const rowCount = Array(canvasHeight).fill(0);
-    const colCount = Array(canvasWidth).fill(0);
+function checkAndClearSnakeRowsAndColumns() {
+  // Define canvas and gridSize
 
-    // Track the coordinates in each row and column
-    const rowCoordinates = {};
-    const colCoordinates = {};
+  // Calculate grid dimensions
+  const rownumber = canvas.height / gridSize;
+  const cols = canvas.width / gridSize;
 
-    // Populate the tracking maps
-    coordinates.forEach(({ x, y }) => {
-        if (!rowCoordinates[y]) rowCoordinates[y] = [];
-        if (!colCoordinates[x]) colCoordinates[x] = [];
-        
-        rowCoordinates[y].push({ x, y });
-        colCoordinates[x].push({ x, y });
-        
-        rowCount[y]++;
-        colCount[x]++;
-    });
+  // Create a 2D array to track grid occupancy
+  const grid = Array.from({ length: rownumber }, () => Array(cols).fill(false));
 
-    // Find filled rows and columns
-    const filledRows = rowCount
-        .map((count, index) => (count === canvasWidth ? index : -1))
-        .filter(index => index !== -1);
+  // Mark snake positions on the grid
+  for (const segment of snake) {
+    if (segment.x >= 0 && segment.x < cols && segment.y >= 0 && segment.y < rows) {
+      grid[segment.y][segment.x] = true;
+    }
+  }
 
-    const filledCols = colCount
-        .map((count, index) => (count === canvasHeight ? index : -1))
-        .filter(index => index !== -1);
+  // Check for full rows
+  for (let y = 0; y < rows; y++) {
+    if (grid[y].every(cell => cell)) {
+      // Remove snake segments in the full row
+      for (let x = 0; x < cols; x++) {
+        const index = snake.findIndex(segment => segment.x === x && segment.y === y);
+        if (index !== -1) {
+          snake.splice(index, 1);
+        }
+      }
+    }
+  }
 
-    // Create a set of coordinates to remove
-    const toRemove = new Set();
-
-    filledRows.forEach(row => {
-        rowCoordinates[row].forEach(({ x, y }) => {
-            toRemove.add(`${x},${y}`);
-        });
-    });
-
-    filledCols.forEach(col => {
-        colCoordinates[col].forEach(({ x, y }) => {
-            toRemove.add(`${x},${y}`);
-        });
-    });
-
-    // Filter out the coordinates that are in filled rows or columns
-    const filteredCoordinates = coordinates.filter(({ x, y }) => !toRemove.has(`${x},${y}`));
-
-    return filteredCoordinates;
+  // Check for full columns
+  for (let x = 0; x < cols; x++) {
+    if (grid.every(row => row[x])) {
+      // Remove snake segments in the full column
+      for (let y = 0; y < rows; y++) {
+        const index = snake.findIndex(segment => segment.x === x && segment.y === y);
+        if (index !== -1) {
+          snake.splice(index, 1);
+        }
+      }
+    }
+  }
 }
 
-// Example Usage
-
-
+        
 function handleTouchStart(event) {
     const touch = event.touches[0];
     touchStartX = touch.clientX;
@@ -351,9 +342,7 @@ function updateGame() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     resizeCanvas();
     drawGrid();
-    let ctxh = canvas.height/gridSize
-    let ctxw = canvas.width/gridSize
-snake = filterFilledCoordinates(snake, ctxw, ctxh);
+    checkAndClearSnakeRowsAndColumns()
     if (isPaused === false) {
         moveSnake();
         handleCollisions();
