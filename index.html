@@ -114,6 +114,9 @@ function checkAndClearSnakeRowsAndColumns() {
         const index = snake.findIndex(segment => segment.x === x && segment.y === y);
         if (index !== -1) {
           snake.splice(index, 1);
+         if (score >= 1){
+score -= 10
+         }
         }
       }
     }
@@ -127,6 +130,9 @@ function checkAndClearSnakeRowsAndColumns() {
         const index = snake.findIndex(segment => segment.x === x && segment.y === y);
         if (index !== -1) {
           snake.splice(index, 1);
+            if (score >= 1){
+score -= 10
+         }
         }
       }
     }
