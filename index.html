@@ -59,6 +59,7 @@
 canvas.width = 400; // Or desired width
 canvas.height = 400; // Or desired height
 
+let negativeLifePenalty = false
 let connectedPoints = []
 let tetrisSpawnChance = 0.9
         let gridSize = 20; // Size of grid cells
@@ -114,9 +115,14 @@ function checkAndClearSnakeRowsAndColumns() {
         const index = snake.findIndex(segment => segment.x === x && segment.y === y);
         if (index !== -1) {
           snake.splice(index, 1);
-         if (score >= 1){
-score -= 10
-         }
+if (score - 10 >= 0) { // Check if score will not go negative
+    score -= 10;       // Subtract 10 from score
+} else {
+    if (!negativeLifePenalty) { // If penalty hasn't been applied yet
+        health -= 1;            // Subtract 1 from health
+        negativeLifePenalty = true; // Set penalty flag
+    }
+}
         }
       }
     }
@@ -130,9 +136,14 @@ score -= 10
         const index = snake.findIndex(segment => segment.x === x && segment.y === y);
         if (index !== -1) {
           snake.splice(index, 1);
-            if (score >= 1){
-score -= 10
-         }
+            if (score - 10 >= 0) { // Check if score will not go negative
+    score -= 10;       // Subtract 10 from score
+} else {
+    if (!negativeLifePenalty) { // If penalty hasn't been applied yet
+        health -= 1;            // Subtract 1 from health
+        negativeLifePenalty = true; // Set penalty flag
+    }
+}
         }
       }
     }
@@ -349,6 +360,8 @@ function updateGame() {
     resizeCanvas();
     drawGrid();
     checkAndClearSnakeRowsAndColumns()
+    negativeLifePenalty = false
+    
     if (isPaused === false) {
         moveSnake();
         handleCollisions();
@@ -385,6 +398,9 @@ if (scoreAddLineClear === false){
 if (connectedPoints.length === 0){
         scoreAddLineClear = false
 }
+    if (health <= 0){
+gameOver()
+    }
     columns = canvas.width / gridSize;
     rows = canvas.height / gridSize;
 
@@ -397,8 +413,6 @@ let y = 30; // Start Y position
 // Draw Score and Health
 ctx.fillText(`Score: ${score}`, x, y);
 ctx.fillText(`Health: ${health}`, x, y + 20);
-ctx.fillText(`width: ${canvas.width/gridSize}`, x, y + 40);
-
 }
 
 
