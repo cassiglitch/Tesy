@@ -361,7 +361,7 @@ function updateGame() {
     drawGrid();
     checkAndClearSnakeRowsAndColumns()
     negativeLifePenalty = false
-    
+    pellets = []
     if (isPaused === false) {
         moveSnake();
         handleCollisions();
